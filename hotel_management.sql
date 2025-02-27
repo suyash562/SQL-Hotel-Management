@@ -7,7 +7,6 @@ create table customers0_2009(
 	phone varchar(10) unique not null,
 	address varchar(100)
 )
--- select * from customers0_2009;
 
 
 -- Rooms Table
@@ -17,9 +16,7 @@ create table rooms_2009(
 	pricePerNight int not null check (pricePerNight >= 0),
 	status varchar(10) check (status in ('available', 'occupied')) not null,
 )
-select * from rooms_2009;
-update rooms_2009 set status = 'occupied' where roomId = 6;
---update rooms_2009 set status = 'occupied' where roomId = 1;
+
 
 
 
@@ -32,7 +29,7 @@ create table bookings0_2009(
 	checkOutDate date,
 	totalAmount int not null check(totalAmount >= 0)
 )
-select * from bookings0_2009;
+
 
 
 -- Payments Table
@@ -43,7 +40,6 @@ create table payments_2009(
 	amount int not null check(amount >= 0),
 	paymentMethod varchar(20) check (paymentMethod in ('online', 'cash'))
 )
--- select * from payments_2009;
 
 
 -- Employees Table
@@ -55,7 +51,7 @@ create table employees_2009(
 	hireDate date not null,
 	managerId int foreign key references employees_2009(employeeId)
 )
--- select * from employees_2009;
+
 
 
 -- Services Table
@@ -73,8 +69,9 @@ create table bookingService_2009(
 	quantity smallint check (quantity >= 0),
 	totalServiceCost int check (totalServiceCost >= 0)
 )
-insert into bookingService_2009 values(1, 1, 2, 400);
-insert into bookingService_2009 values(1, 2, 1, 500);
+
+--insert into bookingService_2009 values(1, 1, 2, 400);
+insert into bookingService_2009 values(2, 2, 1, 500);
 
 -- Hotel Branch Table
 create table hotelBranch_2009(
@@ -187,15 +184,61 @@ print(dbo.findCustomerTotalVisitDays(1))
 
 
 -- 7. Trigger
+-- Cancel booking trigger
 GO
 create trigger updateRoomStatus on bookings0_2009
 instead of delete
 as
 begin
 	update rooms_2009 set status = 'available' where roomId in (select roomId from deleted);
+	delete from bookingService_2009 where bookingId in (select bookingId from deleted);
 end
 
-delete from bookings0_2009 where bookingId = 2;
+
+delete from bookings0_2009 where bookingId = 1;
+update rooms_2009 set status = 'occupied' where roomId = 6;
+
+-- drop trigger updateRoomStatus;
+
+-- After booking trigger
+GO
+create trigger updateRoomStatusAfterBooking on bookings0_2009
+after insert
+as
+begin
+	update rooms_2009 set status = 'occupied' where roomId in (select roomId from inserted);
+end
+
+insert into bookings0_2009 values(2, 1, getdate(), '2025-02-28', 3000);
+update rooms_2009 set status = 'available' where roomId = 1;
+
+
+-- Service Trigger
+-- Reduce amount after removing service
+GO
+create trigger updateAmountAfterServiceDelete on bookingService_2009
+after delete
+as
+begin
+	update bookings0_2009 set totalAmount -= (select totalServiceCost from deleted) where bookingId in (select bookingId from deleted);
+end
+
+delete from bookingService_2009 where bookingId = 1;
+
+
+-- Increase amount after adding service
+GO
+create trigger updateAmountAfterServiceAdded on bookingService_2009
+after insert
+as
+begin
+	update bookings0_2009 set totalAmount += (select totalServiceCost from inserted) where bookingId in (select bookingId from inserted);
+end
+
+insert into bookingService_2009 values(1, 1, 2, 400);
+
+
+--drop trigger updateAmountAfterServiceDelete;
 
 -- 8. Security
 
@@ -223,3 +266,16 @@ create fulltext index on hotelBranch_2009(description, location)
 key index hotelBranchIndex;
 
 select * from hotelBranch_2009 where contains(description, '"sea view"');
+
+
+
+
+
+select * from customers0_2009;
+select * from rooms_2009;
+select * from bookings0_2009;
+select * from payments_2009;
+select * from employees_2009;
+select * from services_2009;
+select * from bookingService_2009;
+select * from bookings0_2009;
