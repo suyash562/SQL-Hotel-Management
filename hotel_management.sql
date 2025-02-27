@@ -69,9 +69,10 @@ create table bookingService_2009(
 	quantity smallint check (quantity >= 0),
 	totalServiceCost int check (totalServiceCost >= 0)
 )
+-- alter table bookingService_2009 add constraint defaultValue default 0 for totalServiceCost;
 
 --insert into bookingService_2009 values(1, 1, 2, 400);
-insert into bookingService_2009 values(2, 2, 1, 500);
+insert into bookingService_2009 values(2, 2, 1);
 
 -- Hotel Branch Table
 create table hotelBranch_2009(
@@ -232,13 +233,23 @@ create trigger updateAmountAfterServiceAdded on bookingService_2009
 after insert
 as
 begin
+	update bookingService_2009 set totalServiceCost += 
+		(
+			select price * quantity
+			from services_2009 
+			where serviceId = (select serviceId from inserted)
+		)
+		where serviceId = (select serviceId from inserted) and bookingId = (select bookingId from inserted)
 	update bookings0_2009 set totalAmount += (select totalServiceCost from inserted) where bookingId in (select bookingId from inserted);
 end
 
-insert into bookingService_2009 values(1, 1, 2, 400);
+insert into bookingService_2009 values(2, 4, 2, 0);
 
 
---drop trigger updateAmountAfterServiceDelete;
+
+-- drop trigger updateAmountAfterServiceAdded;
+
+
 
 -- 8. Security
 
@@ -273,9 +284,10 @@ select * from hotelBranch_2009 where contains(description, '"sea view"');
 
 select * from customers0_2009;
 select * from rooms_2009;
-select * from bookings0_2009;
 select * from payments_2009;
 select * from employees_2009;
 select * from services_2009;
 select * from bookingService_2009;
 select * from bookings0_2009;
+
+
